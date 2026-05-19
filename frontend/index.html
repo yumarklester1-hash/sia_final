@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Logger — Generate & Track</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap');
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --border: #2a2a32;
+      --accent: #00e5a0;
+      --accent2: #7b61ff;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --error: #ff4d6d;
+      --success: #00e5a0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-mark {
+      width: 38px; height: 38px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+      padding: 6px;
+    }
+    .logo-mark span {
+      background: var(--bg);
+      border-radius: 2px;
+    }
+    .logo-mark span:last-child {
+      grid-column: span 2;
+      height: 6px;
+    }
+
+    header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      color: var(--text);
+    }
+    header h1 span { color: var(--accent); }
+
+    .badge {
+      margin-left: auto;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.3);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.1em;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 2.5rem;
+      gap: 2rem;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+
+    .panel-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .panel-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .form-group { margin-bottom: 1.25rem; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,160,0.08);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-sm {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.7rem;
+    }
+
+    /* QR Output */
+    .qr-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .qr-placeholder {
+      width: 220px; height: 220px;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.75rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin: 0 auto 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .qr-placeholder svg { opacity: 0.3; }
+
+    #qrcode {
+      display: none;
+      margin: 0 auto 1.5rem;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #qrcode canvas, #qrcode img {
+      border-radius: 12px;
+      display: block;
+    }
+
+    .qr-meta {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 0.78rem;
+      line-height: 1.8;
+    }
+
+    .qr-meta-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .qr-meta-row .key { color: var(--muted); }
+    .qr-meta-row .val {
+      font-family: 'Space Mono', monospace;
+      color: var(--accent);
+      font-size: 0.72rem;
+    }
+
+    .qr-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    .qr-actions .btn { flex: 1; justify-content: center; }
+
+    /* Status log */
+    .status-log {
+      margin-top: 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      max-height: 100px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+
+    .log-entry { display: flex; gap: 0.5rem; align-items: flex-start; }
+    .log-entry.success .log-msg { color: var(--success); }
+    .log-entry.error .log-msg { color: var(--error); }
+    .log-entry.info .log-msg { color: var(--muted); }
+    .log-time { color: #3a3a4a; flex-shrink: 0; }
+
+    /* History Table */
+    .history-section {
+      grid-column: span 2;
+    }
+
+    .history-table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      background: var(--bg);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .td-url {
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent2);
+    }
+
+    .empty-state {
+      padding: 3rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid transparent;
+      border-top-color: var(--bg);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Pulse dot for "connected" */
+    .pulse {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(0,229,160,0); }
+    }
+
+    @media (max-width: 768px) {
+      main { grid-template-columns: 1fr; padding: 1rem; }
+      .history-section { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <span></span><span></span><span></span><span></span>
+    <span></span>
+  </div>
+  <h1>QR<span>Logger</span></h1>
+  <span class="badge">SYSTEM INTEGRATION DEMO</span>
+</header>
+
+<main>
+  <!-- INPUT PANEL -->
+  <div class="panel">
+    <div class="panel-title">Generate QR Code</div>
+
+    <div class="form-group">
+      <label>Content / URL</label>
+      <textarea id="qrContent" placeholder="https://example.com or any text...">https://</textarea>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>Label / Tag</label>
+        <input type="text" id="qrLabel" placeholder="e.g. Product A, Event 1" />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="qrCategory">
+          <option value="URL">URL</option>
+          <option value="Product">Product</option>
+          <option value="Event">Event</option>
+          <option value="Contact">Contact</option>
+          <option value="WiFi">WiFi</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>QR Size (px)</label>
+        <input type="number" id="qrSize" value="220" min="100" max="500" />
+      </div>
+      <div class="form-group">
+        <label>Error Correction</label>
+        <select id="qrEC">
+          <option value="L">Low (L)</option>
+          <option value="M" selected>Medium (M)</option>
+          <option value="Q">Quartile (Q)</option>
+          <option value="H">High (H)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Google Sheets Web App URL</label>
+      <input type="url" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+      <div style="font-size:0.72rem; color: var(--muted); margin-top:0.3rem;">
+        Paste your deployed Apps Script Web App URL here
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="generateBtn" onclick="generateQR()">
+      <span>Generate + Log to Sheets</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+
+    <div class="status-log" id="statusLog">
+      <div class="log-entry info">
+        <span class="log-time">[ready]</span>
+        <span class="log-msg">Waiting for input...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR OUTPUT PANEL -->
+  <div class="panel qr-panel">
+    <div class="panel-title">QR Output</div>
+
+    <div class="qr-placeholder" id="qrPlaceholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/>
+        <rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/>
+      </svg>
+      <span>QR code will appear here</span>
+    </div>
+
+    <div id="qrcode"></div>
+
+    <div class="qr-meta" id="qrMeta" style="display:none;">
+      <div class="qr-meta-row"><span class="key">Generated at</span><span class="val" id="metaTime">—</span></div>
+      <div class="qr-meta-row"><span class="key">Label</span><span class="val" id="metaLabel">—</span></div>
+      <div class="qr-meta-row"><span class="key">Category</span><span class="val" id="metaCategory">—</span></div>
+      <div class="qr-meta-row"><span class="key">Content length</span><span class="val" id="metaLength">—</span></div>
+      <div class="qr-meta-row"><span class="key">Sheets logged</span><span class="val" id="metaLogged">—</span></div>
+    </div>
+
+    <div class="qr-actions" id="qrActions" style="display:none;">
+      <button class="btn btn-outline btn-sm" onclick="downloadQR()">⬇ Download PNG</button>
+      <button class="btn btn-outline btn-sm" onclick="copyContent()">⎘ Copy Text</button>
+    </div>
+  </div>
+
+  <!-- HISTORY TABLE -->
+  <div class="panel history-section">
+    <div class="panel-title" style="justify-content: space-between;">
+      <span>Generation History (Local)</span>
+      <button class="btn btn-outline btn-sm" onclick="clearHistory()">Clear</button>
+    </div>
+    <div class="history-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Timestamp</th>
+            <th>Label</th>
+            <th>Category</th>
+            <th>Content</th>
+            <th>Sheets</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="6"><div class="empty-state">No QR codes generated yet.</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  let history = JSON.parse(localStorage.getItem('qrHistory') || '[]');
+  let currentQR = null;
+  let currentContent = '';
+
+  function log(msg, type = 'info') {
+    const log = document.getElementById('statusLog');
+    const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-time">[${now}]</span><span class="log-msg">${msg}</span>`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function generateQR() {
+    const content = document.getElementById('qrContent').value.trim();
+    const label = document.getElementById('qrLabel').value.trim() || 'Untitled';
+    const category = document.getElementById('qrCategory').value;
+    const size = parseInt(document.getElementById('qrSize').value) || 220;
+    const ec = document.getElementById('qrEC').value;
+    const sheetsUrl = document.getElementById('sheetsUrl').value.trim();
+
+    if (!content) { log('⚠ Content is required.', 'error'); return; }
+
+    const btn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('spinner');
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+
+    // Generate QR
+    log('Generating QR code...', 'info');
+    const qrDiv = document.getElementById('qrcode');
+    const placeholder = document.getElementById('qrPlaceholder');
+    qrDiv.innerHTML = '';
+    currentContent = content;
+
+    try {
+      currentQR = new QRCode(qrDiv, {
+        text: content,
+        width: size,
+        height: size,
+        correctLevel: QRCode.CorrectLevel[ec]
+      });
+      placeholder.style.display = 'none';
+      qrDiv.style.display = 'block';
+      log('✓ QR code generated successfully.', 'success');
+    } catch (e) {
+      log('✗ QR generation failed: ' + e.message, 'error');
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const displayTime = new Date().toLocaleString();
+    let sheetStatus = 'NOT LOGGED';
+
+    // Log to Google Sheets
+    if (sheetsUrl) {
+      log('Sending data to Google Sheets...', 'info');
+      try {
+        const payload = { timestamp, label, category, content, size, errorCorrection: ec };
+        const res = await fetch(sheetsUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        sheetStatus = 'LOGGED ✓';
+        log('✓ Data logged to Google Sheets.', 'success');
+      } catch (err) {
+        sheetStatus = 'FAILED';
+        log('✗ Sheets logging failed: ' + err.message, 'error');
+      }
+    } else {
+      log('ℹ No Sheets URL provided — skipping log.', 'info');
+    }
+
+    // Update meta
+    document.getElementById('metaTime').textContent = displayTime;
+    document.getElementById('metaLabel').textContent = label;
+    document.getElementById('metaCategory').textContent = category;
+    document.getElementById('metaLength').textContent = content.length + ' chars';
+    document.getElementById('metaLogged').textContent = sheetStatus;
+    document.getElementById('qrMeta').style.display = 'block';
+    document.getElementById('qrActions').style.display = 'flex';
+
+    // Save to local history
+    const entry = { timestamp, displayTime, label, category, content, sheetStatus };
+    history.unshift(entry);
+    localStorage.setItem('qrHistory', JSON.stringify(history));
+    renderHistory();
+
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+
+  function renderHistory() {
+    const tbody = document.getElementById('historyBody');
+    if (!history.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No QR codes generated yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = history.slice(0, 20).map((h, i) => `
+      <tr>
+        <td style="color:var(--muted);font-family:'Space Mono',monospace;font-size:0.72rem;">${i+1}</td>
+        <td style="font-family:'Space Mono',monospace;font-size:0.72rem;color:var(--muted);">${h.displayTime}</td>
+        <td>${h.label}</td>
+        <td><span style="background:rgba(123,97,255,0.15);color:#a896ff;padding:2px 8px;border-radius:4px;font-size:0.72rem;">${h.category}</span></td>
+        <td class="td-url">${escapeHtml(h.content)}</td>
+        <td><span style="color:${h.sheetStatus.includes('✓') ? 'var(--accent)' : h.sheetStatus === 'FAILED' ? 'var(--error)' : 'var(--muted)'};font-size:0.75rem;">${h.sheetStatus}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  function downloadQR() {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `qr-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    log('✓ QR image downloaded.', 'success');
+  }
+
+  function copyContent() {
+    navigator.clipboard.writeText(currentContent).then(() => {
+      log('✓ Content copied to clipboard.', 'success');
+    });
+  }
+
+  function clearHistory() {
+    if (confirm('Clear all local history?')) {
+      history = [];
+      localStorage.removeItem('qrHistory');
+      renderHistory();
+      log('History cleared.', 'info');
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Init
+  renderHistory();
+</script>
+</body>
+</html>
